@@ -50,22 +50,14 @@ describe("workbook round trip", () => {
     expect(loaded.sheet.get("AD2")).toBe("FILE-STATE");
   });
 
-  test("the template's stray RoDTEPQty column is dropped, other layouts are left alone", async () => {
-    const withHeader = await openWorkbook(
+  test("the template's RoDTEPQty column is kept in the output", async () => {
+    const book = await openWorkbook(
       workbookFile([{ B: 1, D: "x", K: "7318", AK: "=O2" }], "a.xlsx", { AK1: "RoDTEPQty" }),
     );
-    const cleaned = fillAndBuild(withHeader, () => null).blob;
-    const reopened = await openWorkbook(new File([await cleaned.arrayBuffer()], "out.xlsx"));
-    expect(reopened.sheet.get("AK1")).toBeUndefined();
-    expect(reopened.sheet.get("AK2")).toBeUndefined();
-
-    const other = await openWorkbook(
-      workbookFile([{ B: 1, D: "x", K: "7318", AK: "keep" }], "b.xlsx", { AK1: "Notes" }),
-    );
-    const kept = await openWorkbook(
-      new File([await fillAndBuild(other, () => null).blob.arrayBuffer()], "out.xlsx"),
-    );
-    expect(kept.sheet.get("AK2")).toBe("keep");
+    const out = fillAndBuild(book, () => null).blob;
+    const reopened = await openWorkbook(new File([await out.arrayBuffer()], "out.xlsx"));
+    expect(reopened.sheet.get("AK1")).toBe("RoDTEPQty");
+    expect(reopened.sheet.get("AK2")).toBeDefined();
   });
 
   test("the output name uses local date and time together", () => {

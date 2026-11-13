@@ -31,10 +31,8 @@ export const COL = {
   igstRate: "AG",
   igstAmount: "AH",
   rodtep: "AJ",
+  rodtepQty: "AK",
 } as const;
-
-/** Template column that is not part of the tool's output. It is removed from the filled file when its header matches. */
-export const STRAY_COLUMN = { col: "AK", header: "RoDTEPQty" } as const;
 
 /** Header text the template is expected to carry; mismatches are warnings, not errors. */
 export const EXPECTED_HEADERS: Readonly<Record<string, string>> = {

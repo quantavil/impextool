@@ -1,7 +1,7 @@
 import XLSX from "xlsx-js-style";
 import { applyOverrides, type Overrides, type Snapshot } from "../core/review";
 import { type Guidelines, headerMismatches, indexRows, type RowIndex, readGuidelines } from "../core/scan";
-import { COL, cell, type SheetPort, STRAY_COLUMN, text } from "../core/sheet";
+import { COL, cell, type SheetPort, text } from "../core/sheet";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -99,20 +99,6 @@ export async function openWorkbook(file: File): Promise<Loaded> {
   return { fileName: file.name, sheetName, buffer, sheet, index, guidelines, warnings };
 }
 
-/** Removes the template's stray column (header must match, so a different layout is never touched). */
-function dropStrayColumn(ws: XLSX.WorkSheet): void {
-  const ref = ws["!ref"];
-  if (!ref) return;
-  const range = XLSX.utils.decode_range(ref);
-  const c = XLSX.utils.decode_col(STRAY_COLUMN.col);
-  const header = text(ws[XLSX.utils.encode_cell({ r: range.s.r, c })]?.v);
-  if (header.toLowerCase() !== STRAY_COLUMN.header.toLowerCase()) return;
-  for (let r = range.s.r; r <= range.e.r; r++) delete ws[XLSX.utils.encode_cell({ r, c })];
-  if (c === range.e.c && c > range.s.c) {
-    ws["!ref"] = XLSX.utils.encode_range({ s: range.s, e: { r: range.e.r, c: c - 1 } });
-  }
-}
-
 /** Cell text as the review table shows it: formulas as "=M2", empty cells as "". */
 function snapshot(ws: XLSX.WorkSheet, addresses: readonly string[]): Snapshot {
   const out: Record<string, string> = {};
@@ -145,7 +131,6 @@ export function fillAndBuild<T>(
   const result = fill(port, loaded.index.dataRows);
   const after = snapshot(ws, watch);
   applyOverrides(port, overrides);
-  dropStrayColumn(ws);
   const ref = ws["!ref"];
   if (ref) {
     // Matches the userscript: font size 11 on every used cell.

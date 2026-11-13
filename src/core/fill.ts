@@ -7,7 +7,15 @@ const DRAWBACK_PREFIXES = new Set([
 ]);
 
 /** Columns owned by a matched row: rewritten from duty data, cleared first. */
-const DUTY_COLS = [COL.sqcUnit, COL.rodtep, COL.dbkSr, COL.dbkQty, COL.dbkRate, COL.dbkUnit] as const;
+const DUTY_COLS = [
+  COL.sqcUnit,
+  COL.rodtep,
+  COL.rodtepQty,
+  COL.dbkSr,
+  COL.dbkQty,
+  COL.dbkRate,
+  COL.dbkUnit,
+] as const;
 const IGST_COLS = [COL.igstTaxable, COL.igstRate, COL.igstAmount] as const;
 
 export function isDrawbackScheme(code: string): boolean {
@@ -157,7 +165,11 @@ function writeDuty(
   }
 
   // RODTEP says whether the row claims RoDTEP: the user's choice, or N/A when ImpexCube has no RoDTEP entry for the HS code.
-  write(sheet, COL.rodtep, r, o.rodtep === "Yes" && !rec.rodtepFound ? "N/A" : o.rodtep);
+  const claim = o.rodtep === "Yes" && !rec.rodtepFound ? "N/A" : o.rodtep;
+  write(sheet, COL.rodtep, r, claim);
+  // RoDTEPQty: Quantity when ImpexCube's RoDTEP UQC is NOS, else SQC quantity. Only a claimed row carries a quantity.
+  if (claim === "Yes")
+    sheet.setFormula(cell(COL.rodtepQty, r), cell(rec.rodtepUqc === "NOS" ? COL.quantity : COL.sqcQty, r));
 
   const entry = drawback ? resolveDbkEntry(o.plan, ritc, r) : null;
   if (!entry) return false;

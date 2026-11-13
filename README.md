@@ -14,6 +14,7 @@ Fills the `ProductFormat.xlsx` template for Indian export shipping-bill filing. 
 
 - Every Apply starts from a fresh parse of the uploaded file, so changing a choice and applying again never keeps values from an earlier fill. Manual edits are re-applied on top.
 - RoDTEP (column AJ) is asked as `Yes` or `No` (default `Yes`) and written on every matched row. A `Yes` becomes `N/A` on rows whose HS code has no RoDTEP entry in ImpexCube.
+- RoDTEPQty (column AK) is `=M` (Quantity) when the RoDTEP UQC is NOS, otherwise `=O` (SQC quantity), on `Yes` rows only; cleared on `No` and `N/A` rows.
 - Drawback columns (U to X) are filled only for Drawback schemes and are cleared on matched rows otherwise. Rows without duty data keep their file values.
 - The FTA code is written to the column whose header is `FTACode`.
 - The template's `RoDTEPQty` column (AK) is removed from the filled file when its header matches.

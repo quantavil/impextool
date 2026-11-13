@@ -137,7 +137,7 @@ describe("rates and IGST", () => {
 
 describe("scanning", () => {
   test("indexRows groups by RITC and counts blank codes", () => {
-    const { port } = memorySheet({ B2: 1, K2: "9403", B3: 2, B4: 3, K4: "9403", B5: "" });
+    const { port, formula } = memorySheet({ B2: 1, K2: "9403", B3: 2, B4: 3, K4: "9403", B5: "" });
     const index = indexRows(port, 1, 5);
     expect(index.dataRows).toEqual([2, 3, 4]);
     expect(index.rowsByRitc).toEqual({ "9403": [2, 4] });
@@ -170,7 +170,7 @@ describe("fillWorkbook", () => {
     expect(formula("O2")).toBe("M2");
     expect(port.get("AJ2")).toBe("Yes");
     expect(port.get("AJ3")).toBe("Yes");
-    expect(formula("AK2")).toBeUndefined();
+    expect(formula("AK2")).toBe("M2");
     expect(port.get("U3")).toBe("11");
     expect(port.get("W3")).toBe(2);
     expect(formula("V3")).toBe("O3");
@@ -274,10 +274,20 @@ describe("RoDTEP choice", () => {
       ["Yes", "Yes", "N/A"],
       ["No", "No", "No"],
     ] as const) {
-      const { port } = memorySheet({ B2: 1, K2: "9403", M2: 4, B3: 2, K3: "7318", M3: 6 });
+      const { port, formula } = memorySheet({
+        B2: 1,
+        K2: "9403",
+        M2: 4,
+        B3: 2,
+        K3: "7318",
+        M3: 6,
+        AK3: "=O3",
+      });
       const index = indexRows(port, 1, 3);
       fillWorkbook(port, index.dataRows, { ...BASE, rodtep: choice, plan: planFor(port, index.rowsByRitc) });
       expect([port.get("AJ2"), port.get("AJ3")]).toEqual([row2, row3]);
+      expect(formula("AK2") === "M2").toBe(choice === "Yes");
+      expect(formula("AK3")).toBeUndefined();
     }
   });
 });
