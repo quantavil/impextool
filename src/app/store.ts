@@ -18,7 +18,7 @@ import type { Loaded } from "../io/workbook";
 const io = () => import("../io/workbook");
 
 export const YES_NO = ["Yes", "No"] as const;
-export const RODTEP_CHOICES = ["Yes", "No", "N/A"] as const;
+export const RODTEP_CHOICES = ["Yes", "No"] as const;
 const INTER_REQUEST_MS = 500;
 const SPREADSHEET = /\.(xlsx|xls)$/i;
 const LOG_LIMIT = 200;
@@ -28,7 +28,7 @@ const EMPTY_FORM: ShipmentForm = {
   endUse: "GNX100",
   fta: "NCPTI",
   reward: "Yes",
-  rodtep: "N/A",
+  rodtep: "Yes",
   state: "",
   district: "",
   country: "",

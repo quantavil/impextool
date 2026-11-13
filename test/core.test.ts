@@ -168,8 +168,8 @@ describe("fillWorkbook", () => {
     expect(port.get("X2")).toBe("KGS");
     expect(formula("V2")).toBe("M2");
     expect(formula("O2")).toBe("M2");
-    expect(formula("AJ2")).toBe("M2");
-    expect(formula("AJ3")).toBe("M3");
+    expect(port.get("AJ2")).toBe("Yes");
+    expect(port.get("AJ3")).toBe("Yes");
     expect(formula("AK2")).toBeUndefined();
     expect(port.get("U3")).toBe("11");
     expect(port.get("W3")).toBe(2);
@@ -180,14 +180,6 @@ describe("fillWorkbook", () => {
     expect(port.get("P4")).toBe("KEEP");
     expect(port.get("AJ4")).toBe("Yes");
     expect(port.get("U4")).toBe("77");
-  });
-
-  test("RODTEP quantity follows the RoDTEP UQC: NOS uses Quantity, anything else the SQC quantity", () => {
-    const { port, formula } = memorySheet({ B2: 1, K2: "7318", M2: 4, B3: 2, K3: "9403", M3: 6 });
-    const index = indexRows(port, 1, 3);
-    fillWorkbook(port, index.dataRows, { ...BASE, plan: planFor(port, index.rowsByRitc) });
-    expect(formula("AJ2")).toBe("O2");
-    expect(formula("AJ3")).toBe("M3");
   });
 
   test("a non-drawback scheme clears duty columns on matched rows only", () => {
@@ -277,16 +269,15 @@ describe("manual overrides", () => {
 });
 
 describe("RoDTEP choice", () => {
-  test("only Yes fills the RODTEP column", () => {
-    for (const [choice, filled] of [
-      ["Yes", true],
-      ["No", false],
-      ["N/A", false],
+  test("Yes becomes N/A without RoDTEP data, No is written as is", () => {
+    for (const [choice, row2, row3] of [
+      ["Yes", "Yes", "N/A"],
+      ["No", "No", "No"],
     ] as const) {
-      const { port, formula } = memorySheet(SHEET);
-      const index = indexRows(port, 1, 4);
+      const { port } = memorySheet({ B2: 1, K2: "9403", M2: 4, B3: 2, K3: "7318", M3: 6 });
+      const index = indexRows(port, 1, 3);
       fillWorkbook(port, index.dataRows, { ...BASE, rodtep: choice, plan: planFor(port, index.rowsByRitc) });
-      expect(formula("AJ2") !== undefined).toBe(filled);
+      expect([port.get("AJ2"), port.get("AJ3")]).toEqual([row2, row3]);
     }
   });
 });

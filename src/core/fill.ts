@@ -22,7 +22,7 @@ export interface ShipmentForm {
   /** Optional FTA code, written to the template's FTACode column when it has one. */
   fta?: string;
   reward: string;
-  /** Whether to claim RoDTEP. Only "Yes" fills the RODTEP quantity column. */
+  /** Whether to claim RoDTEP ("Yes" or "No"). "Yes" becomes N/A on rows whose HS code has no RoDTEP entry. */
   rodtep: string;
   state: string;
   district: string;
@@ -156,9 +156,8 @@ function writeDuty(
     sheet.setFormula(cell(COL.sqcQty, r), cell(COL.quantity, r));
   }
 
-  // RODTEP holds the quantity on every matched row: Quantity when ImpexCube's RoDTEP UQC is NOS, else SQC quantity.
-  if (o.rodtep === "Yes")
-    sheet.setFormula(cell(COL.rodtep, r), cell(rec.rodtepUqc === "NOS" ? COL.quantity : COL.sqcQty, r));
+  // RODTEP says whether the row claims RoDTEP: the user's choice, or N/A when ImpexCube has no RoDTEP entry for the HS code.
+  write(sheet, COL.rodtep, r, o.rodtep === "Yes" && !rec.rodtepFound ? "N/A" : o.rodtep);
 
   const entry = drawback ? resolveDbkEntry(o.plan, ritc, r) : null;
   if (!entry) return false;
@@ -209,7 +208,10 @@ function summarize(
       ? `Drawback columns filled on ${report.drawbackRows} row(s).`
       : "Drawback columns cleared on matched rows: scheme does not carry Drawback.",
   );
-  if (o.rodtep === "Yes") lines.push(`RoDTEP quantity formula written on ${report.matched} matched row(s).`);
+  if (o.rodtep !== "")
+    lines.push(
+      `RoDTEP "${o.rodtep}" written on ${report.matched} matched row(s); N/A where no RoDTEP entry exists.`,
+    );
   lines.push(`IGST payment status "${o.paymentStatus}" written.`);
   if (zeroIgst) lines.push("Taxable value, IGST rate and amount set to 0.");
   if (paid) {

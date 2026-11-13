@@ -328,11 +328,11 @@ describe("review result", () => {
     const root = mount();
     const st = await filled(root);
     await st.applyFill();
-    // AJ is filled with =O2; the user replaces it, and the scheme stays what the fill wrote.
+    // AJ is filled with Yes/N/A; the user replaces it, and the scheme stays what the fill wrote.
     st.setOverride("AJ2", "7");
     st.setOverride("L2", "");
     await st.outputSettled();
-    expect(st.review.value?.after.AJ2).toBe("=O2");
+    expect(st.review.value?.after.AJ2).toBe("N/A");
 
     await st.applyFill();
     expect(st.overrides.value).toEqual({ AJ2: "7", L2: "" });
