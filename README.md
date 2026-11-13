@@ -43,8 +43,11 @@ Fills the `ProductFormat.xlsx` template for Indian export shipping-bill filing. 
 
 ## Deploy to Cloudflare Pages
 
-- Build command: `npx --yes bun@1.4.4 install --frozen-lockfile && npx --yes bun@1.4.4 run build`
+- Framework preset: None
+- Build command: `bun run build`
 - Build output directory: `dist`
+
+Pages installs dependencies from `bun.lock` on its own. If its Bun is too old, set the environment variable `BUN_VERSION` to `1.4.4`.
 
 Pages picks up `functions/` automatically. Other hosts: serve the static `dist/` and call `handleApi(request)` from `server/handler.ts` for `/api/*`.
 
