@@ -1,0 +1,11 @@
+{
+  "entry": ["src/main.tsx", "functions/**/*.ts", "test/*.test.{ts,tsx}", "scripts/*.ts"],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "server/**/*.ts",
+    "functions/**/*.ts",
+    "shared/**/*.ts",
+    "test/**/*.{ts,tsx}",
+    "scripts/**/*.ts"
+  ]
+}
