@@ -4,11 +4,22 @@ Fills the `ProductFormat.xlsx` template for Indian export shipping-bill filing. 
 
 ## What it does
 
-1. Upload the ProductFormat `.xlsx`. Rows and HSN codes are detected.
+1. Upload the ProductFormat `.xlsx`, or paste a table copied from Excel. Rows and HSN codes are detected.
 2. Set the shipment fields. Defaults: Scheme `19-Drawback (DBK)`, End use `GNX100`, IGST payment status `LUT`, Reward item `Yes`, RoDTEP `N/A`, FTA code `NCPTI`. Values already consistent in the file take priority over the defaults.
 3. Fetch duty data per HSN, choose a DBK option where several apply, and set IGST per HSN when payment status is `P`.
 4. Apply and fill. The form is replaced by an editable sheet so you can check the result and edit any cell. Back returns to the form with your edits kept.
 5. Download the filled `.xlsx`.
+
+## Paste instead of upload
+
+Copy the header row and the data rows from Excel (or Google Sheets), then click _paste a table copied from Excel_ on the first screen, or press Ctrl+V while that screen is open. Columns are matched by header name:
+
+- A column named `HSN`, `HSN Code`, `RITC` or `RITCCode` is required.
+- `ItemSNo` is generated when the table has no such column, and blank item numbers are numbered.
+- Other recognized headers fill their template columns: `Description`, `Quantity`/`Qty`, `Unit`/`UQC`, `FOB`, `Scheme`, `End Use`, `Country`, `State`, `District`, `IGST Rate`, `FTACode` and the template's own headers.
+- Unrecognized columns are ignored and listed before you load the table.
+
+The pasted rows become a generated workbook with the template's columns, so duty lookup, Apply and review work the same as for an uploaded file. The download is named `Pasted table_Filled_<date>_<time>.xlsx`.
 
 ## Output rules
 

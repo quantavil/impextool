@@ -248,6 +248,8 @@ interface ComboboxProps {
   hint?: string | undefined;
   hideLabel?: boolean;
   lead?: boolean;
+  /** Keep the chosen option's detail visible after its label while the list is closed (cut with …). */
+  showDetail?: boolean;
 }
 
 /**
@@ -268,6 +270,7 @@ export function Combobox({
   hint,
   hideLabel,
   lead,
+  showDetail,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState<string | null>(null);
@@ -282,7 +285,9 @@ export function Combobox({
     [options, value, freeText],
   );
   const matches = useMemo(() => filterOptions(all, query), [all, query]);
-  const shown = freeText ? value : (all.find((o) => o.value === value)?.label ?? "");
+  const chosen = all.find((o) => o.value === value);
+  const shown = freeText ? value : (chosen?.label ?? "");
+  const detail = showDetail && !freeText && value !== "" && !open ? chosen?.detail : undefined;
   const listId = `${id}-list`;
   const popup = open && (matches.length > 0 || !freeText);
 
@@ -342,6 +347,12 @@ export function Combobox({
       lead={lead}
     >
       <div className="combo">
+        {detail && (
+          <span className="combo-shown" aria-hidden="true">
+            <span className="combo-shown-label">{shown}</span>
+            <span className="combo-shown-detail">{detail}</span>
+          </span>
+        )}
         <input
           id={id}
           className="combo-input"
@@ -358,6 +369,7 @@ export function Combobox({
           disabled={disabled}
           placeholder={placeholder}
           value={query ?? shown}
+          title={detail ? `${shown} — ${detail}` : undefined}
           onFocus={(e) => {
             openList();
             e.currentTarget.select();

@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { applyPicks, buildDbkPlan } from "../src/core/duty";
 import { fillWorkbook } from "../src/core/fill";
-import { fillAndBuild, openWorkbook, outputName } from "../src/io/workbook";
+import { fillAndBuild, openPastedTable, openWorkbook, outputName } from "../src/io/workbook";
 import { DUTY, workbookFile } from "./fixtures";
 
 const SHIPMENT = {
@@ -74,5 +74,37 @@ describe("workbook round trip", () => {
   test("numeric HSN cells raise a leading-zero warning", async () => {
     const loaded = await openWorkbook(workbookFile([{ B: 1, K: 101, D: "x" }]));
     expect(loaded.warnings.some((w) => w.includes("stored as numbers"))).toBe(true);
+  });
+
+  test("a pasted table opens as a workbook and fills like an upload", async () => {
+    const loaded = openPastedTable("Description\tHSN\tQty\tUnit\tFOB\nBicycle mirror\t7009\t10\tNOS\t2500");
+    expect(loaded.fileName).toBe("Pasted table.xlsx");
+    expect(loaded.index.dataRows).toEqual([2]);
+    expect(loaded.index.rowsByRitc).toEqual({ "7009": [2] });
+    expect(loaded.sheet.get("B2")).toBe("1");
+    expect(loaded.sheet.get("D2")).toBe("Bicycle mirror");
+    expect(loaded.sheet.get("K2")).toBe("7009");
+    expect(loaded.sheet.get("M2")).toBe(10);
+    expect(loaded.sheet.get("R2")).toBe(2500);
+    expect(loaded.warnings.some((w) => w.includes("Guidelines"))).toBe(false);
+
+    const { blob } = fillAndBuild(loaded, (sheet, rows) =>
+      fillWorkbook(sheet, rows, { ...SHIPMENT, plan: {} }),
+    );
+    const reopened = await openWorkbook(new File([await blob.arrayBuffer()], "out.xlsx"));
+    expect(reopened.sheet.get("L2")).toBe("19-Drawback (DBK)");
+    expect(reopened.sheet.get("J2")).toBe("LUT");
+    expect(reopened.sheet.get("AL2")).toBeUndefined();
+  });
+
+  test("formatted numbers in a pasted table are stored as numbers", () => {
+    const loaded = openPastedTable("HSN\tQty\tFOB\n7009\t1,000\t2,500.50");
+    expect(loaded.sheet.get("M2")).toBe(1000);
+    expect(loaded.sheet.get("R2")).toBe(2500.5);
+    expect(loaded.sheet.get("K2")).toBe("7009");
+  });
+
+  test("a pasted table without an HSN column is rejected with a clear message", () => {
+    expect(() => openPastedTable("Description\tQty\nmirror\t10")).toThrow("No HSN column");
   });
 });

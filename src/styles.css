@@ -440,6 +440,35 @@ input:disabled {
   padding-right: 3.1rem;
   text-overflow: ellipsis;
 }
+/* The chosen value with its detail: an inert layer over the input while the list is closed. */
+.combo-shown {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0 3.1rem 0 0.7rem;
+  overflow: hidden;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.combo-shown-label {
+  flex: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.combo-shown-detail {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 0.85rem;
+  color: var(--muted);
+  text-overflow: ellipsis;
+}
+.combo-shown ~ .combo-input {
+  color: transparent;
+}
 .combo::after {
   content: "";
   position: absolute;
@@ -920,6 +949,73 @@ progress {
   height: 2rem;
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius);
+}
+
+/* ---------- Paste ---------- */
+
+.paste-open {
+  text-align: center;
+}
+.paste-open .link {
+  color: var(--muted);
+}
+.paste-open .link:hover {
+  color: var(--ink);
+}
+
+.paste-panel {
+  padding: 1.1rem 1.25rem 1.25rem;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.paste-panel .sheet-head {
+  margin-bottom: 0.5rem;
+}
+.paste-panel h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.paste-panel > p {
+  margin-bottom: 0.75rem;
+}
+.paste-box {
+  width: 100%;
+  min-height: 9rem;
+  padding: 0.6rem 0.7rem;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  white-space: pre;
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  resize: vertical;
+}
+.paste-box::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.paste-box:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.paste-status {
+  display: grid;
+  gap: 0.2rem;
+  min-height: 2.2rem;
+  padding: 0.55rem 0;
+}
+.paste-status strong {
+  color: var(--ink);
+}
+.paste-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .drop-veil {

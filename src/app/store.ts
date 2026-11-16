@@ -107,7 +107,7 @@ const options = computed<FillOptions>(() => {
 
 export const blockers = computed<Blocker[]>(() => {
   const wb = workbook.value;
-  if (!wb) return [{ id: "file", message: "Upload a ProductFormat.xlsx file." }];
+  if (!wb) return [{ id: "file", message: "Upload a ProductFormat.xlsx file or paste a table." }];
   return fillBlockers(options.value, Object.keys(wb.index.rowsByRitc));
 });
 
@@ -186,30 +186,53 @@ export async function loadFile(file: File): Promise<void> {
     const wb = await openWorkbook(file);
     // A newer attempt started while this one was reading: let that one win.
     if (token !== loadToken) return;
-    // Only now is the previous file really being replaced, so only now is its lookup stale.
-    generation++;
-    stopRequested = true;
-    dutyProgress.value = null;
-    workbook.value = wb;
-    duty.value = {};
-    dutyStatus.value = {};
-    picks.value = {};
-    output.value = null;
-    review.value = null;
-    reviewing.value = false;
-    overrides.value = {};
-    applied = null;
-    showErrors.value = false;
-    manual.value = { code: "", rate: "" };
-    form.value = prefill(wb);
-    say(
-      "ok",
-      `Parsed ${file.name}: ${wb.index.dataRows.length} row(s), ${Object.keys(wb.index.rowsByRitc).length} HSN code(s).`,
-    );
-    for (const w of wb.warnings) say("warn", w);
+    adopt(wb);
   } catch (err) {
     if (token === loadToken) fail(`Could not read ${file.name}: ${errorText(err)}`);
   }
+}
+
+/** Opens a table copied from Excel; it goes through the same path as an uploaded file. */
+export async function loadPasted(text: string): Promise<void> {
+  const token = ++loadToken;
+  loadError.value = null;
+  try {
+    const { openPastedTable } = await io();
+    const wb = openPastedTable(text);
+    if (token !== loadToken) return;
+    adopt(wb);
+  } catch (err) {
+    if (token !== loadToken) return;
+    const message = `Could not use the pasted table: ${errorText(err)}`;
+    loadError.value = message;
+    say("err", message);
+  }
+}
+
+/** Replaces the current workbook and resets everything derived from it. */
+function adopt(wb: Loaded): void {
+  loadError.value = null;
+  // Only now is the previous file really being replaced, so only now is its lookup stale.
+  generation++;
+  stopRequested = true;
+  dutyProgress.value = null;
+  workbook.value = wb;
+  duty.value = {};
+  dutyStatus.value = {};
+  picks.value = {};
+  output.value = null;
+  review.value = null;
+  reviewing.value = false;
+  overrides.value = {};
+  applied = null;
+  showErrors.value = false;
+  manual.value = { code: "", rate: "" };
+  form.value = prefill(wb);
+  say(
+    "ok",
+    `Parsed ${wb.fileName}: ${wb.index.dataRows.length} row(s), ${Object.keys(wb.index.rowsByRitc).length} HSN code(s).`,
+  );
+  for (const w of wb.warnings) say("warn", w);
 }
 
 export function setField<K extends keyof ShipmentForm>(key: K, value: ShipmentForm[K]): void {

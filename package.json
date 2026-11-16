@@ -11,6 +11,7 @@
   "type": "module",
   "scripts": {
     "build": "bun scripts/clean.ts && bun build ./index.html --outdir dist --minify --splitting",
+    "dev": "bun run serve",
     "serve": "bun run build && bun server/serve.ts",
     "test": "bun test",
     "typecheck": "tsc --noEmit",

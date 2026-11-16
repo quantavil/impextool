@@ -4,8 +4,10 @@ import {
   dutyProgress,
   dutyStatus,
   fetchAllDuty,
+  form,
   loadError,
   loadFile,
+  loadPasted,
   warnings,
   workbook,
 } from "../src/app/store";
@@ -97,5 +99,26 @@ describe("loading and lookups", () => {
     );
     expect(warnings.value.some((w) => w.includes("not fetched yet"))).toBe(true);
     expect(warnings.value.some((w) => w.includes("no HSN code"))).toBe(true);
+  });
+});
+
+describe("pasted tables", () => {
+  test("a pasted table replaces the workbook and prefills the form", async () => {
+    await loadFile(workbookFile([{ B: 1, K: "9403", D: "old" }], "old.xlsx"));
+    await loadPasted("ItemSNo\tDescription\tHSN\tScheme\n1\tBicycle mirror\t7009\t19-Drawback (DBK)");
+
+    expect(workbook.value?.fileName).toBe("Pasted table.xlsx");
+    expect(workbook.value?.index.rowsByRitc).toEqual({ "7009": [2] });
+    expect(form.value.scheme).toBe("19-Drawback (DBK)");
+    expect(loadError.value).toBeNull();
+  });
+
+  test("a bad paste keeps the current workbook and reports why", async () => {
+    await loadFile(workbookFile([{ B: 1, K: "9403", D: "keep" }], "keep.xlsx"));
+    const good = workbook.value;
+    await loadPasted("1\tmirror\t7009");
+
+    expect(workbook.value).toBe(good);
+    expect(loadError.value).toContain("No column names");
   });
 });

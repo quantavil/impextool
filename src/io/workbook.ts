@@ -1,7 +1,8 @@
 import XLSX from "xlsx-js-style";
+import { analyzePaste, PASTE_FTA_COL, type PastedTable, type PasteKey, pastedNumber } from "../core/paste";
 import { applyOverrides, type Overrides, type Snapshot } from "../core/review";
 import { type Guidelines, headerMismatches, indexRows, type RowIndex, readGuidelines } from "../core/scan";
-import { COL, cell, type SheetPort, text } from "../core/sheet";
+import { COL, cell, EXPECTED_HEADERS, type SheetPort } from "../core/sheet";
 
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
@@ -62,8 +63,7 @@ function parse(buffer: ArrayBuffer): { workbook: XLSX.WorkBook; sheetName: strin
   return { workbook, sheetName, ws };
 }
 
-export async function openWorkbook(file: File): Promise<Loaded> {
-  const buffer = await file.arrayBuffer();
+function readWorkbook(buffer: ArrayBuffer, fileName: string, pasted = false): Loaded {
   const { workbook, sheetName, ws } = parse(buffer);
   const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
   const sheet = toPort(ws);
@@ -90,13 +90,79 @@ export async function openWorkbook(file: File): Promise<Loaded> {
 
   const gws = workbook.Sheets.Guidelines;
   const gRef = gws?.["!ref"];
-  if (!gws || !gRef) warnings.push("No Guidelines sheet: scheme, end use and payment lists use defaults.");
+  // A pasted table is built here, so its missing Guidelines sheet is expected, not a warning.
+  if (!pasted && (!gws || !gRef)) {
+    warnings.push("No Guidelines sheet: scheme, end use and payment lists use defaults.");
+  }
   const guidelines =
     gws && gRef
       ? readGuidelines(toPort(gws), XLSX.utils.decode_range(gRef).e.r + 1)
       : readGuidelines(null, 0);
 
-  return { fileName: file.name, sheetName, buffer, sheet, index, guidelines, warnings };
+  return { fileName, sheetName, buffer, sheet, index, guidelines, warnings };
+}
+
+export async function openWorkbook(file: File): Promise<Loaded> {
+  return readWorkbook(await file.arrayBuffer(), file.name);
+}
+
+const PASTE_FILE = "Pasted table.xlsx";
+const PASTE_NUMERIC: ReadonlySet<PasteKey> = new Set([
+  "quantity",
+  "sqcQty",
+  "fob",
+  "igstTaxable",
+  "igstRate",
+  "igstAmount",
+  "dbkQty",
+  "dbkRate",
+]);
+/** Headers for columns the template names are not known for; only written when the pasted table has them. */
+const PASTE_EXTRA_HEADERS: Partial<Record<PasteKey, string>> = {
+  endUse: "EndUseCode",
+  paymentStatus: "IGSTPaymentStatus",
+  fob: "FOB",
+  igstTaxable: "IGSTTaxableValue",
+  igstRate: "IGSTRate",
+  igstAmount: "IGSTAmount",
+  fta: "FTACode",
+};
+
+/** Builds a workbook from mapped paste columns: template headers in row 1, one row per pasted record. */
+function pasteBuffer(table: PastedTable): ArrayBuffer {
+  const width = XLSX.utils.decode_col(PASTE_FTA_COL) + 1;
+  const blank = () => Array.from({ length: width }, (): string | number | null => null);
+  const header = blank();
+  for (const [col, title] of Object.entries(EXPECTED_HEADERS)) header[XLSX.utils.decode_col(col)] = title;
+  header[XLSX.utils.decode_col(PASTE_FTA_COL)] = "FTACode";
+  for (const c of table.columns) {
+    const col = XLSX.utils.decode_col(c.col);
+    const extra = PASTE_EXTRA_HEADERS[c.key];
+    if (extra !== undefined && header[col] === null) header[col] = extra;
+  }
+
+  const aoa: (string | number | null)[][] = [header];
+  for (const values of table.rows) {
+    const row = blank();
+    table.columns.forEach((c, i) => {
+      const raw = values[i] ?? "";
+      if (raw === "") return;
+      row[XLSX.utils.decode_col(c.col)] = PASTE_NUMERIC.has(c.key) ? pastedNumber(raw) : raw;
+    });
+    aoa.push(row);
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, ws, "Sheet1");
+  return XLSX.write(workbook, { bookType: "xlsx", type: "array" }) as ArrayBuffer;
+}
+
+/** Opens a table copied from Excel, with the same validation and warnings as an uploaded file. */
+export function openPastedTable(text: string): Loaded {
+  const table = analyzePaste(text);
+  if (table.error) throw new Error(table.error);
+  return readWorkbook(pasteBuffer(table), PASTE_FILE, true);
 }
 
 /** Cell text as the review table shows it: formulas as "=M2", empty cells as "". */

@@ -46,7 +46,9 @@ describe("app shell", () => {
 
     expect(root.textContent).toContain("ImpexTool");
     expect(root.textContent).toContain("Drop ProductFormat.xlsx here");
-    expect(blockers.value.map((b) => b.message)).toEqual(["Upload a ProductFormat.xlsx file."]);
+    expect(blockers.value.map((b) => b.message)).toEqual([
+      "Upload a ProductFormat.xlsx file or paste a table.",
+    ]);
 
     await loadFile(
       workbookFile([
@@ -111,7 +113,7 @@ describe("app shell", () => {
 
 const key = (el: Element, k: string) =>
   el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
-const type = (el: HTMLInputElement, text: string) => {
+const type = (el: HTMLInputElement | HTMLTextAreaElement, text: string) => {
   el.value = text;
   el.dispatchEvent(new Event("input", { bubbles: true }));
 };
@@ -121,8 +123,59 @@ const COUNTRIES: Option[] = [
   { value: "AE", label: "United Arab Emirates (AE)", detail: "Gulf" },
 ];
 
+describe("paste instead of upload", () => {
+  async function mountLanding() {
+    const { App } = await import("../src/app/App");
+    const st = await import("../src/app/store");
+    st.workbook.value = null;
+    st.loadError.value = null;
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    render(<App />, root);
+    await tick();
+    const open = [...root.querySelectorAll("button")].find(
+      (b) => b.textContent === "paste a table copied from Excel",
+    );
+    if (!open) throw new Error("paste link not found");
+    open.click();
+    await tick();
+    const box = root.querySelector("textarea") as HTMLTextAreaElement | null;
+    if (!box) throw new Error("paste box not found");
+    return { root, st, box };
+  }
+
+  test("a copied table loads from the landing screen", async () => {
+    const { root, st, box } = await mountLanding();
+    type(box, "ItemSNo\tDescription\tHSN\tQty\tUnit\n1\tBicycle mirror\t7009\t10\tNOS");
+    await tick();
+
+    expect(root.querySelector("#paste-status")?.textContent).toContain("1 row(s)");
+    expect(root.querySelector("#paste-status")?.textContent).toContain("HSN");
+    const use = [...root.querySelectorAll("button")].find((b) => b.textContent === "Use pasted table");
+    if (!use) throw new Error("use button not found");
+    expect(use.hasAttribute("disabled")).toBe(false);
+    use.click();
+    await tick();
+    await tick();
+
+    expect(st.workbook.value?.fileName).toBe("Pasted table.xlsx");
+    expect(st.workbook.value?.index.rowsByRitc).toEqual({ "7009": [2] });
+    expect(root.querySelector("#sec-shipment")).not.toBeNull();
+  });
+
+  test("a table without an HSN column shows the problem and stays disabled", async () => {
+    const { root, box } = await mountLanding();
+    type(box, "Description\tQty\nmirror\t10");
+    await tick();
+
+    expect(root.querySelector("#paste-status")?.textContent).toContain("No HSN column");
+    const use = [...root.querySelectorAll("button")].find((b) => b.textContent === "Use pasted table");
+    expect(use?.hasAttribute("disabled")).toBe(true);
+  });
+});
+
 describe("combobox", () => {
-  async function mount(props: Partial<{ value: string; freeText: boolean }> = {}) {
+  async function mount(props: Partial<{ value: string; freeText: boolean; showDetail: boolean }> = {}) {
     const { Combobox } = await import("../src/app/ui");
     const changes: string[] = [];
     const root = document.createElement("div");
@@ -134,6 +187,7 @@ describe("combobox", () => {
         value={props.value ?? ""}
         options={COUNTRIES}
         freeText={props.freeText}
+        showDetail={props.showDetail}
         onChange={(v) => changes.push(v)}
       />,
       root,
@@ -183,6 +237,23 @@ describe("combobox", () => {
     expect(input.value).toBe("ZZ (from file)");
   });
 
+  test("showDetail keeps the chosen description beside the value until the list opens", async () => {
+    const { root, input } = await mount({ value: "AE", showDetail: true });
+    expect(root.querySelector(".combo-shown-label")?.textContent).toBe("United Arab Emirates (AE)");
+    const detail = root.querySelector(".combo-shown-detail");
+    expect(detail?.textContent).toBe("Gulf");
+    expect(input.getAttribute("title")).toBe("United Arab Emirates (AE) — Gulf");
+
+    input.focus();
+    await tick();
+    expect(root.querySelector(".combo-shown")).toBeNull();
+  });
+
+  test("showDetail is off unless asked for, so other lists keep the plain value", async () => {
+    const { root } = await mount({ value: "AE" });
+    expect(root.querySelector(".combo-shown")).toBeNull();
+  });
+
   test("free text keeps what was typed on Enter instead of swapping in the first suggestion", async () => {
     const { input, changes } = await mount({ freeText: true });
     input.focus();
@@ -203,6 +274,35 @@ describe("combobox", () => {
     key(input, "Enter");
     await tick();
     expect(changes).toEqual(["IN"]);
+  });
+});
+
+describe("HSN drawback", () => {
+  test("the chosen entry shows its description without an SR prefix", async () => {
+    const { App } = await import("../src/app/App");
+    const st = await import("../src/app/store");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    render(<App />, root);
+    await st.loadFile(workbookFile([{ B: 1, D: "bolt", K: "9403", M: 5, N: "KGS" }]));
+    st.duty.value = DUTY;
+    st.setField("scheme", "19-Drawback (DBK)");
+    st.setField("reward", "No");
+    st.setField("rodtep", "Yes");
+    st.setField("paymentStatus", "LUT");
+    await tick();
+
+    const cell = root.querySelector("#sec-hsn .dbk-cell");
+    expect(cell?.querySelector(".combo-shown-label")?.textContent).toBe("12 · 0.5");
+    expect(cell?.querySelector(".combo-shown-detail")?.textContent).toBe("Others");
+
+    const input = cell?.querySelector("input") as HTMLInputElement | null;
+    if (!input) throw new Error("drawback combobox not found");
+    input.focus();
+    await tick();
+    const labels = [...(cell?.querySelectorAll("[role=option]") ?? [])].map((o) => o.textContent);
+    expect(labels).toHaveLength(3);
+    expect(labels.every((label) => !label?.startsWith("SR "))).toBe(true);
   });
 });
 

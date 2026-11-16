@@ -12,7 +12,7 @@ const STATUS_TEXT: Record<s.DutyStatus, string> = { ok: "Matched", "no-data": "N
 const rateText = (e: DbkOption): string => `${e.rate}${e.unit ? `/${e.unit}` : ""}`;
 const toOption = (e: DbkOption, i: number): Option => ({
   value: String(i),
-  label: `SR ${e.srNo} · ${rateText(e)}`,
+  label: `${e.srNo} · ${rateText(e)}`,
   detail: e.desc || "no description",
 });
 
@@ -51,7 +51,7 @@ export function HsnSection({ wb }: { wb: Loaded }) {
     if (item?.mode === "single") {
       return (
         <span>
-          <code>SR {item.entry.srNo}</code> · {rateText(item.entry)}
+          <code>{item.entry.srNo}</code> · {rateText(item.entry)}
           <span className="faint"> · {item.detected ? "already in file" : "only option"}</span>
         </span>
       );
@@ -71,6 +71,7 @@ export function HsnSection({ wb }: { wb: Loaded }) {
                 required
                 value={idx < 0 ? "" : String(idx)}
                 options={item.options.map(toOption)}
+                showDetail
                 placeholder={`Choose DBK · ${g.label}`}
                 hint={g.ambiguous ? "Several generic entries exist. Confirm the right one." : undefined}
                 error={error(id)}
