@@ -12,17 +12,7 @@ const DEFS = {
   itemSno: {
     col: COL.itemSno,
     label: "ItemSNo",
-    aliases: [
-      "ItemSNo",
-      "Item S No",
-      "Item S.No",
-      "Item No",
-      "Item Number",
-      "S No",
-      "SNo",
-      "Sr No",
-      "Serial No",
-    ],
+    aliases: ["ItemSNo", "Item No", "Item Number", "S No", "Sr No", "Serial No"],
   },
   description: {
     col: COL.description,
@@ -44,38 +34,27 @@ const DEFS = {
   endUse: {
     col: COL.endUse,
     label: "End use",
-    aliases: ["End Use", "EndUse", "End Use Code", "EndUseCode"],
+    aliases: ["End Use", "End Use Code"],
   },
   reward: {
     col: COL.reward,
     label: "Reward",
-    aliases: ["Reward Item", "RewardItem", "Reward"],
+    aliases: ["Reward Item", "Reward"],
   },
   paymentStatus: {
     col: COL.paymentStatus,
     label: "Payment status",
-    aliases: ["IGST Payment Status", "Payment Status", "IGST Status", "PaymentStatus"],
+    aliases: ["IGST Payment Status", "Payment Status", "IGST Status"],
   },
   ritc: {
     col: COL.ritc,
     label: "HSN",
-    aliases: [
-      "RITCCode",
-      "RITC Code",
-      "RITC",
-      "HSN",
-      "HSN Code",
-      "HS Code",
-      "HS",
-      "Tariff Code",
-      "Tariff",
-      "CTH",
-    ],
+    aliases: ["RITCCode", "RITC", "HSN", "HSN Code", "HS Code", "HS", "Tariff Code", "Tariff", "CTH"],
   },
   scheme: {
     col: COL.scheme,
     label: "Scheme",
-    aliases: ["ApplicableExpSchemes", "Applicable Exp Schemes", "Scheme", "Scheme Code", "Export Scheme"],
+    aliases: ["ApplicableExpSchemes", "Scheme", "Scheme Code", "Export Scheme"],
   },
   quantity: {
     col: COL.quantity,
@@ -90,38 +69,32 @@ const DEFS = {
   sqcQty: {
     col: COL.sqcQty,
     label: "SQC qty",
-    aliases: ["SQCQTY", "SQC Qty", "SQC Quantity"],
+    aliases: ["SQCQTY", "SQC Quantity"],
   },
   sqcUnit: {
     col: COL.sqcUnit,
     label: "SQC unit",
-    aliases: ["SQCUnit", "SQC Unit", "SQC UQC"],
+    aliases: ["SQCUnit", "SQC UQC"],
   },
   fob: {
     col: COL.fob,
     label: "FOB",
-    aliases: ["FOB", "FOB Value", "FOBValue", "Item FOB", "Item FOB Value", "FOB Value INR", "FOBValueINR"],
+    aliases: ["FOB", "FOB Value", "Item FOB", "Item FOB Value", "FOB Value INR"],
   },
   country: {
     col: COL.country,
     label: "Country",
-    aliases: [
-      "CountryDestination",
-      "Country Destination",
-      "Destination Country",
-      "Country of Destination",
-      "Country",
-    ],
+    aliases: ["CountryDestination", "Destination Country", "Country of Destination", "Country"],
   },
   state: {
     col: COL.state,
     label: "State",
-    aliases: ["StateOrigin", "State Origin", "Origin State", "State of Origin", "State"],
+    aliases: ["StateOrigin", "Origin State", "State of Origin", "State"],
   },
   district: {
     col: COL.district,
     label: "District",
-    aliases: ["DistrictOrigin", "District Origin", "Origin District", "District"],
+    aliases: ["DistrictOrigin", "Origin District", "District"],
   },
   igstTaxable: {
     col: COL.igstTaxable,
@@ -141,7 +114,7 @@ const DEFS = {
   rodtep: {
     col: COL.rodtep,
     label: "RoDTEP",
-    aliases: ["RoDTEP", "RODTEP", "RoDTEP Claim", "RoDTEP Status"],
+    aliases: ["RoDTEP", "RoDTEP Claim", "RoDTEP Status"],
   },
   dbkSr: {
     col: COL.dbkSr,
@@ -151,22 +124,22 @@ const DEFS = {
   dbkQty: {
     col: COL.dbkQty,
     label: "DBK qty",
-    aliases: ["dbk_qty", "DBK Qty", "Drawback Qty"],
+    aliases: ["dbk_qty", "Drawback Qty"],
   },
   dbkRate: {
     col: COL.dbkRate,
     label: "DBK rate",
-    aliases: ["dbk_rate", "DBK Rate", "Drawback Rate"],
+    aliases: ["dbk_rate", "Drawback Rate"],
   },
   dbkUnit: {
     col: COL.dbkUnit,
     label: "DBK unit",
-    aliases: ["dbk_unit", "DBK Unit", "Drawback Unit"],
+    aliases: ["dbk_unit", "Drawback Unit"],
   },
   fta: {
     col: PASTE_FTA_COL,
     label: "FTA",
-    aliases: ["FTACode", "FTA Code", "FTA"],
+    aliases: ["FTACode", "FTA"],
   },
 } as const;
 
