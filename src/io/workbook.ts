@@ -1,7 +1,7 @@
 import XLSX from "xlsx-js-style";
 import { evaluateFormula } from "../core/formula";
 import { analyzePaste, PASTE_FTA_COL, type PastedTable, type PasteKey, pastedNumber } from "../core/paste";
-import { applyOverrides, type Overrides, type Snapshot } from "../core/review";
+import { applyOverrides, type Overrides, type Snapshot, withHsnEdits } from "../core/review";
 import { type Guidelines, headerMismatches, indexRows, type RowIndex, readGuidelines } from "../core/scan";
 import { COL, cell, EXPECTED_HEADERS, type SheetPort } from "../core/sheet";
 
@@ -220,7 +220,8 @@ export function fillAndBuild<T>(
   const { workbook, ws } = parse(loaded.buffer);
   const before = snapshot(ws, watch);
   const port = toPort(ws);
-  const result = fill(port, loaded.index.dataRows);
+  // The fill reads HSN codes typed in the review table, so their duty is written too.
+  const result = fill(withHsnEdits(port, overrides), loaded.index.dataRows);
   const after = snapshot(ws, watch);
   applyOverrides(port, overrides);
   cacheFormulaResults(ws);

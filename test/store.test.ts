@@ -1,13 +1,16 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import {
+  backToForm,
   duty,
   dutyProgress,
   dutyStatus,
   fetchAllDuty,
   form,
+  index,
   loadError,
   loadFile,
   loadPasted,
+  overrides,
   warnings,
   workbook,
 } from "../src/app/store";
@@ -99,6 +102,90 @@ describe("loading and lookups", () => {
     );
     expect(warnings.value.some((w) => w.includes("not fetched yet"))).toBe(true);
     expect(warnings.value.some((w) => w.includes("no HSN code"))).toBe(true);
+  });
+});
+
+describe("HSN typed in the review table", () => {
+  test("is counted at once, and looked up when going back to the form", async () => {
+    await loadFile(workbookFile([{ B: 1, D: "statue of marble", M: 5, N: "NOS" }], "typed.xlsx"));
+    expect(index.value?.rowsByRitc).toEqual({});
+    expect(warnings.value.some((w) => w.includes("no HSN code"))).toBe(true);
+
+    const asked: string[] = [];
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      asked.push(JSON.parse(String(init?.body)).hsn);
+      return jsonResponse({ status: "ok", hsn: "9403", uqc: "NOS", dbk: [], rodetep: [] });
+    }) as unknown as typeof fetch;
+
+    overrides.value = { K2: "9403" };
+    expect(index.value?.rowsByRitc).toEqual({ "9403": [2] });
+    expect(index.value?.blankRitcRows).toBe(0);
+    expect(warnings.value.some((w) => w.includes("no HSN code"))).toBe(false);
+    expect(asked).toEqual([]);
+
+    await backToForm();
+    expect(asked).toEqual(["9403"]);
+    expect(dutyStatus.value["9403"]).toBe("ok");
+    expect(duty.value["9403"]?.uqc).toBe("NOS");
+  });
+
+  test("going back looks up only the HSN typed in review, not codes the file already had", async () => {
+    await loadFile(workbookFile([{ B: 1, D: "x", K: "9403" }], "scope.xlsx"));
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return jsonResponse({ status: "ok", hsn: "9403", uqc: "NOS", dbk: [], rodetep: [] });
+    }) as unknown as typeof fetch;
+
+    await backToForm();
+    expect(calls).toBe(0);
+  });
+
+  test("an HSN typed while a lookup is running is looked up when that lookup ends", async () => {
+    await loadFile(
+      workbookFile(
+        [
+          { B: 1, D: "x", K: "7318" },
+          { B: 2, D: "y" },
+        ],
+        "busy.xlsx",
+      ),
+    );
+    const asked: string[] = [];
+    let release: () => void = () => {};
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+      const hsn: string = JSON.parse(String(init?.body)).hsn;
+      asked.push(hsn);
+      if (hsn === "7318") await gate;
+      return jsonResponse({ status: "ok", hsn, uqc: "NOS", dbk: [], rodetep: [] });
+    }) as unknown as typeof fetch;
+
+    const running = fetchAllDuty();
+    while (!asked.includes("7318")) await new Promise((resolve) => setTimeout(resolve, 0));
+    overrides.value = { K3: "9403" };
+    await backToForm();
+    release();
+    await running;
+
+    expect(asked).toEqual(["7318", "9403"]);
+    expect(dutyStatus.value["9403"]).toBe("ok");
+  });
+
+  test("going back again does not repeat a lookup that already has an answer", async () => {
+    await loadFile(workbookFile([{ B: 1, D: "x" }], "again-back.xlsx"));
+    overrides.value = { K2: "9403" };
+    let calls = 0;
+    globalThis.fetch = (async () => {
+      calls++;
+      return jsonResponse({ status: "ok", hsn: "9403", uqc: "NOS", dbk: [], rodetep: [] });
+    }) as unknown as typeof fetch;
+
+    await backToForm();
+    await backToForm();
+    expect(calls).toBe(1);
   });
 });
 

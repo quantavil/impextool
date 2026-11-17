@@ -43,7 +43,7 @@ export function App() {
             ) : (
               <>
                 <ShipmentSection wb={wb} />
-                <HsnSection wb={wb} />
+                <HsnSection />
                 <CurrencySection wb={wb} />
               </>
             )}

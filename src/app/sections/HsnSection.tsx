@@ -2,7 +2,6 @@ import type { DbkOption } from "../../core/duty";
 import { FIELD, isDrawbackScheme } from "../../core/fill";
 import { IGST_PERCENTS } from "../../core/rates";
 import type { Option } from "../../data/geo";
-import type { Loaded } from "../../io/workbook";
 import * as s from "../store";
 import { Combobox, Segmented, Sheet, type StepStatus } from "../ui";
 
@@ -17,7 +16,7 @@ const toOption = (e: DbkOption, i: number): Option => ({
 });
 
 /** Duty lookup, Drawback choice and IGST rate for each HSN code, one row per code. */
-export function HsnSection({ wb }: { wb: Loaded }) {
+export function HsnSection() {
   const f = s.form.value;
   const scheme = f.scheme.trim();
   const drawback = isDrawbackScheme(scheme);
@@ -25,7 +24,7 @@ export function HsnSection({ wb }: { wb: Loaded }) {
   const progress = s.dutyProgress.value;
   const status = s.dutyStatus.value;
   const plan = s.plan.value;
-  const codes = Object.entries(wb.index.rowsByRitc);
+  const codes = Object.entries(s.index.value?.rowsByRitc ?? {});
   const looked = Object.keys(status).length > 0;
   const fetched = Object.keys(s.duty.value).length > 0;
   const matched = codes.filter(([c]) => status[c] === "ok").length;

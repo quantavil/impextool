@@ -55,6 +55,25 @@ describe("workbook round trip", () => {
     expect(sheet.AK2?.v).toBe(5);
   });
 
+  test("an HSN typed as an override is written with its duty, not only shown in the file", async () => {
+    const loaded = await openWorkbook(workbookFile([{ B: 1, D: "statue of marble", M: 5, N: "NOS" }]));
+    const overrides = { K2: "9403" };
+    const plan = applyPicks(buildDbkPlan({ "9403": [2] }, DUTY, loaded.sheet), {});
+    const { blob, result } = fillAndBuild(
+      loaded,
+      (sheet, rows) => fillWorkbook(sheet, rows, { ...SHIPMENT, plan }),
+      {
+        overrides,
+      },
+    );
+    expect(result.matched).toBe(1);
+
+    const reopened = await openWorkbook(new File([await blob.arrayBuffer()], "typed-hsn.xlsx"));
+    expect(reopened.sheet.get("K2")).toBe("9403");
+    expect(reopened.sheet.get("L2")).toBe("19-Drawback (DBK)");
+    expect(reopened.sheet.get("U2")).toBe("10");
+  });
+
   test("applying twice starts from the original file, so a cleared choice does not keep an old value", async () => {
     const loaded = await openWorkbook(workbookFile([{ B: 1, D: "x", K: "7318", AD: "FILE-STATE" }]));
     const run = (state: string) =>

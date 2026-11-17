@@ -63,14 +63,33 @@ export type Edit =
   | { kind: "formula"; formula: string }
   | { kind: "value"; value: string | number };
 
+/** The column letters of a cell address: "K12" gives "K". */
+const columnOf = (address: string): string => address.replace(/\d+$/, "");
+
 export function parseEdit(address: string, raw: string): Edit {
   const typed = raw.trim();
   if (typed === "") return { kind: "clear" };
   if (typed.startsWith("=") && typed.length > 1) return { kind: "formula", formula: typed.slice(1).trim() };
-  const column = address.replace(/\d+$/, "");
   // Leading zeros ("0101") and code columns stay text.
-  if (TEXT_COLUMNS.has(column) || /^-?0\d/.test(typed)) return { kind: "value", value: typed };
+  if (TEXT_COLUMNS.has(columnOf(address)) || /^-?0\d/.test(typed)) return { kind: "value", value: typed };
   return { kind: "value", value: numberIfNumeric(typed) };
+}
+
+/**
+ * The sheet as it reads with typed HSN codes in place, so a code typed in the review table is looked up
+ * and filled like one from the file. Other columns and writes pass through unchanged.
+ */
+export function withHsnEdits(sheet: SheetPort, overrides: Overrides): SheetPort {
+  return {
+    ...sheet,
+    get: (address) => {
+      const raw = overrides[address];
+      const isHsn = columnOf(address) === COL.ritc;
+      // A formula in the HSN column has no value to read here, so the file's cell stands.
+      if (!isHsn || raw === undefined || raw.trim().startsWith("=")) return sheet.get(address);
+      return raw.trim();
+    },
+  };
 }
 
 /** Writes manual edits over a filled sheet. */

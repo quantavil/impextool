@@ -8,9 +8,10 @@ import {
   reviewAddresses,
   reviewColumns,
   type Snapshot,
+  withHsnEdits,
 } from "../core/review";
-import { consistentValue } from "../core/scan";
-import { COL, findColumn } from "../core/sheet";
+import { consistentValue, type RowIndex, regroupHsn } from "../core/scan";
+import { COL, cell, findColumn, text } from "../core/sheet";
 import { delay, fetchDuty, fetchRates } from "../io/api";
 import type { Loaded } from "../io/workbook";
 
@@ -86,10 +87,18 @@ let buildSeq = 0;
 let latestBuild: Promise<void> = Promise.resolve();
 let logId = 0;
 
+/** The file's rows grouped by HSN, with HSN codes typed in the review table counted as well. */
+export const index = computed<RowIndex | null>(() => {
+  const wb = workbook.value;
+  if (!wb) return null;
+  return regroupHsn(wb.index, withHsnEdits(wb.sheet, overrides.value));
+});
+
 export const plan = computed<DbkPlan>(() => {
   const wb = workbook.value;
-  if (!wb) return {};
-  return applyPicks(buildDbkPlan(wb.index.rowsByRitc, duty.value, wb.sheet), picks.value);
+  const idx = index.value;
+  if (!wb || !idx) return {};
+  return applyPicks(buildDbkPlan(idx.rowsByRitc, duty.value, wb.sheet), picks.value);
 });
 
 const options = computed<FillOptions>(() => {
@@ -106,9 +115,9 @@ const options = computed<FillOptions>(() => {
 });
 
 export const blockers = computed<Blocker[]>(() => {
-  const wb = workbook.value;
-  if (!wb) return [{ id: "file", message: "Upload a ProductFormat.xlsx file or paste a table." }];
-  return fillBlockers(options.value, Object.keys(wb.index.rowsByRitc));
+  const idx = index.value;
+  if (!idx) return [{ id: "file", message: "Upload a ProductFormat.xlsx file or paste a table." }];
+  return fillBlockers(options.value, Object.keys(idx.rowsByRitc));
 });
 
 /** First blocker message per field id, for inline error text. */
@@ -124,15 +133,15 @@ export const pendingIn = (...ids: string[]): number =>
 
 /** Things that do not stop a fill but change what it writes. */
 export const warnings = computed<string[]>(() => {
-  const wb = workbook.value;
-  if (!wb) return [];
+  const idx = index.value;
+  if (!idx) return [];
   const notes: string[] = [];
-  const codes = Object.keys(wb.index.rowsByRitc);
+  const codes = Object.keys(idx.rowsByRitc);
   const status = dutyStatus.value;
   const looked = Object.keys(status).length > 0;
   const unresolved = codes.filter((c) => status[c] !== "ok");
-  if (wb.index.blankRitcRows > 0) {
-    notes.push(`${wb.index.blankRitcRows} row(s) have no HSN code, so they get no duty data.`);
+  if (idx.blankRitcRows > 0) {
+    notes.push(`${idx.blankRitcRows} row(s) have no HSN code, so they get no duty data.`);
   }
   if (codes.length > 0 && !looked && !dutyProgress.value) {
     notes.push("Duty data not fetched yet. DBK, RoDTEP and UQC columns stay as in the file.");
@@ -298,10 +307,36 @@ export function stopDuty(): void {
 }
 
 export async function fetchAllDuty(): Promise<void> {
+  await fetchDutyFor(Object.keys(index.value?.rowsByRitc ?? {}));
+}
+
+/**
+ * Looks up the HSN codes typed in the review table that have no answer yet. Codes the file already had
+ * wait for the Fetch button, as before.
+ */
+function fetchTypedDuty(): Promise<void> {
+  const idx = index.value;
+  if (!idx) return Promise.resolve();
+  const typed = Object.entries(idx.rowsByRitc)
+    .filter(
+      ([code, rows]) =>
+        dutyStatus.value[code] === undefined &&
+        rows.some((r) => overrides.value[cell(COL.ritc, r)] !== undefined),
+    )
+    .map(([code]) => code);
+  return fetchDutyFor(typed);
+}
+
+/** Set when typed codes need a lookup while another one is running; that run fetches them when it ends. */
+let lookupQueued = false;
+
+async function fetchDutyFor(codes: readonly string[]): Promise<void> {
   const wb = workbook.value;
-  if (!wb || dutyProgress.value) return;
-  const codes = Object.keys(wb.index.rowsByRitc);
-  if (codes.length === 0) return;
+  if (!wb || codes.length === 0) return;
+  if (dutyProgress.value) {
+    lookupQueued = true;
+    return;
+  }
 
   const gen = generation;
   const isCurrent = () => gen === generation;
@@ -350,11 +385,14 @@ export async function fetchAllDuty(): Promise<void> {
   } finally {
     if (isCurrent()) dutyProgress.value = null;
   }
+  const queued = lookupQueued && !stopRequested;
+  lookupQueued = false;
   if (!isCurrent()) return;
   say(
     tally.failed ? "warn" : "ok",
     `Duty lookup finished: ${tally.ok} ok, ${tally.noData} no data, ${tally.failed} failed.`,
   );
+  if (queued) await fetchTypedDuty();
 }
 
 const scrollToTop = (): void => {
@@ -362,9 +400,10 @@ const scrollToTop = (): void => {
 };
 
 /** Returns from the review view to the form. Values and manual edits stay as they were. */
-export function backToForm(): void {
+export function backToForm(): Promise<void> {
   reviewing.value = false;
   scrollToTop();
+  return fetchTypedDuty();
 }
 
 const plural = (n: number): string => `${n} manual edit${n === 1 ? "" : "s"}`;

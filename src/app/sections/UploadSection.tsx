@@ -193,7 +193,7 @@ const ICON = {
 
 /** Loaded file name and a quiet replace action, for the top bar. */
 export function FileSummary({ wb }: { wb: Loaded }) {
-  const codes = Object.keys(wb.index.rowsByRitc).length;
+  const codes = Object.keys(s.index.value?.rowsByRitc ?? {}).length;
   return (
     <div className="file">
       <span className="file-name" title={wb.fileName}>

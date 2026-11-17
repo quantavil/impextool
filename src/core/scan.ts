@@ -12,12 +12,21 @@ export interface RowIndex {
 
 export function indexRows(sheet: SheetPort, headerRow: number, lastRow: number): RowIndex {
   const dataRows: number[] = [];
+  for (let r = headerRow + 1; r <= lastRow; r++) {
+    if (text(sheet.get(cell(COL.itemSno, r))) !== "") dataRows.push(r);
+  }
+  return { dataRows, ...groupByHsn(dataRows, (r) => text(sheet.get(cell(COL.ritc, r)))) };
+}
+
+/** Rows grouped by the HSN code `hsnAt` returns for each one. Rows with no code are counted, not grouped. */
+function groupByHsn(
+  rows: readonly number[],
+  hsnAt: (row: number) => string,
+): Pick<RowIndex, "rowsByRitc" | "blankRitcRows"> {
   const rowsByRitc: Record<string, number[]> = {};
   let blankRitcRows = 0;
-  for (let r = headerRow + 1; r <= lastRow; r++) {
-    if (text(sheet.get(cell(COL.itemSno, r))) === "") continue;
-    dataRows.push(r);
-    const ritc = text(sheet.get(cell(COL.ritc, r)));
+  for (const r of rows) {
+    const ritc = hsnAt(r);
     if (!ritc) {
       blankRitcRows++;
       continue;
@@ -26,7 +35,12 @@ export function indexRows(sheet: SheetPort, headerRow: number, lastRow: number):
     list.push(r);
     rowsByRitc[ritc] = list;
   }
-  return { dataRows, rowsByRitc, blankRitcRows };
+  return { rowsByRitc, blankRitcRows };
+}
+
+/** The same rows, grouped again from the sheet as it reads now, so an HSN typed after the parse counts. */
+export function regroupHsn(base: RowIndex, sheet: SheetPort): RowIndex {
+  return { dataRows: base.dataRows, ...groupByHsn(base.dataRows, (r) => text(sheet.get(cell(COL.ritc, r)))) };
 }
 
 export function headerMismatches(sheet: SheetPort, headerRow: number): string[] {
