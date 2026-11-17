@@ -1,4 +1,5 @@
 import XLSX from "xlsx-js-style";
+import { evaluateFormula } from "../core/formula";
 import { analyzePaste, PASTE_FTA_COL, type PastedTable, type PasteKey, pastedNumber } from "../core/paste";
 import { applyOverrides, type Overrides, type Snapshot } from "../core/review";
 import { type Guidelines, headerMismatches, indexRows, type RowIndex, readGuidelines } from "../core/scan";
@@ -175,6 +176,31 @@ function snapshot(ws: XLSX.WorkSheet, addresses: readonly string[]): Snapshot {
   return out;
 }
 
+/**
+ * Stores a result next to every formula, as Excel does on save. ImpexCube reads the stored result, and a
+ * formula written without one reaches it as empty text, which it cannot convert to a number.
+ */
+function cacheFormulaResults(ws: XLSX.WorkSheet): void {
+  const busy = new Set<string>();
+  const valueAt = (address: string): string | number | undefined => {
+    const c = ws[address];
+    if (!c?.f) return typeof c?.v === "string" || typeof c?.v === "number" ? c.v : undefined;
+    if (busy.has(address)) throw new Error(`Formula in ${address} refers back to itself.`);
+    busy.add(address);
+    let value = evaluateFormula(c.f, valueAt);
+    // A formula this evaluator does not know keeps the result Excel stored with it, if there is one.
+    if (value === undefined && (typeof c.v === "string" || typeof c.v === "number")) value = c.v;
+    busy.delete(address);
+    if (value === undefined)
+      throw new Error(`Cannot work out ${address} (=${c.f}). Type its value in the review table.`);
+    ws[address] = { ...c, t: typeof value === "number" ? "n" : "s", v: value };
+    return value;
+  };
+  for (const address of Object.keys(ws)) {
+    if (/^[A-Z]+\d+$/.test(address)) valueAt(address);
+  }
+}
+
 export interface BuildExtras {
   /** Manual edits written over the filled sheet. */
   overrides?: Overrides;
@@ -197,6 +223,7 @@ export function fillAndBuild<T>(
   const result = fill(port, loaded.index.dataRows);
   const after = snapshot(ws, watch);
   applyOverrides(port, overrides);
+  cacheFormulaResults(ws);
   const ref = ws["!ref"];
   if (ref) {
     // Matches the userscript: font size 11 on every used cell.

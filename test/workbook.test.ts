@@ -1,4 +1,5 @@
 import { describe, expect, test } from "bun:test";
+import XLSX from "xlsx-js-style";
 import { applyPicks, buildDbkPlan } from "../src/core/duty";
 import { fillWorkbook } from "../src/core/fill";
 import { fillAndBuild, openPastedTable, openWorkbook, outputName } from "../src/io/workbook";
@@ -36,6 +37,22 @@ describe("workbook round trip", () => {
     expect(reopened.sheet.get("L2")).toBe("19-Drawback (DBK)");
     expect(reopened.sheet.get("U2")).toBe("10");
     expect(reopened.sheet.get("W2")).toBe(1.5);
+  });
+
+  test("every formula in the download carries its result, so ImpexCube can read it", async () => {
+    const loaded = await openWorkbook(
+      workbookFile([{ B: 1, D: "statue of marble", K: "9403", M: 5, N: "NOS" }]),
+    );
+    const plan = applyPicks(buildDbkPlan(loaded.index.rowsByRitc, DUTY, loaded.sheet), {});
+    const { blob } = fillAndBuild(loaded, (sheet, rows) => fillWorkbook(sheet, rows, { ...SHIPMENT, plan }));
+
+    const raw = XLSX.read(new Uint8Array(await blob.arrayBuffer()), { type: "array", cellFormula: true });
+    const sheet = raw.Sheets.Sheet1 ?? {};
+    const formulas = Object.keys(sheet).filter((a) => sheet[a]?.f !== undefined);
+    expect(formulas).toContain("O2");
+    expect(formulas.filter((a) => sheet[a]?.v === undefined)).toEqual([]);
+    expect(sheet.O2?.v).toBe(5);
+    expect(sheet.AK2?.v).toBe(5);
   });
 
   test("applying twice starts from the original file, so a cleared choice does not keep an old value", async () => {
